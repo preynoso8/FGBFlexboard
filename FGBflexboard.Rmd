@@ -1,0 +1,118 @@
+---
+title: "FordGoBike Dashboard"
+author: "Patricia Reynoso"
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: columns
+    vertical_layout: fill
+---
+
+```{r setup, include=FALSE}
+library(flexdashboard)
+library(readr)
+library(ggplot2)
+library(dplyr)
+library(leaflet)
+library(plotly)
+library(lubridate)
+library(tidyr)
+```
+
+Column {data-width=400}
+-----------------------------------------------------------------------
+
+### FordGoBike Stations Locations (Click on the marker to see the station's name)
+
+```{r}
+
+
+
+fordgobike2017   <- read_csv("2017-fordgobike-tripdata.csv")
+fordgobike201801 <- read_csv("201801-fordgobike-tripdata.csv")
+fordgobike201802 <- read_csv("201802-fordgobike-tripdata.csv")
+fordgobike201803 <- read_csv("201803-fordgobike-tripdata.csv")
+fordgobike201804 <- read_csv("201804-fordgobike-tripdata.csv")
+fordgobike201805 <- read_csv("201805-fordgobike-tripdata.csv")
+fordgobike201806 <- read_csv("201806-fordgobike-tripdata.csv")
+fordgobike201807 <- read_csv("201807-fordgobike-tripdata.csv")
+fordgobike201808 <- read_csv("201808-fordgobike-tripdata.csv")
+fordgobike201809 <- read_csv("201809-fordgobike-tripdata.csv")
+fordgobike201810 <- read_csv("201810-fordgobike-tripdata.csv")
+
+fordgobike201806 <- fordgobike201806 %>%
+  mutate(start_station_id = as.integer(start_station_id),
+         end_station_id= as.integer(end_station_id) )
+
+fordgobike201807 <- fordgobike201807 %>%
+  mutate(start_station_id = as.integer(start_station_id),
+         end_station_id= as.integer(end_station_id) )
+
+fordgobike201808 <- fordgobike201808 %>%
+  mutate(start_station_id = as.integer(start_station_id),
+         end_station_id= as.integer(end_station_id) )
+
+fordgobike201809 <- fordgobike201809 %>%
+  mutate(start_station_id = as.integer(start_station_id),
+         end_station_id= as.integer(end_station_id) )
+
+fordgobike201810 <- fordgobike201810 %>%
+  mutate(start_station_id = as.integer(start_station_id),
+         end_station_id= as.integer(end_station_id) )
+
+
+fordgobike <- bind_rows(fordgobike2017,fordgobike201801, fordgobike201802, fordgobike201803, fordgobike201804,fordgobike201805, fordgobike201806, fordgobike201807, fordgobike201808, fordgobike201809, fordgobike201810)
+
+
+stations<-fordgobike%>%
+            select(start_station_name, start_station_longitude, start_station_latitude)%>%
+  filter(start_station_name != 'NULL')%>%
+            unique()
+
+
+
+map <- leaflet()%>%
+        addTiles() %>%
+        addMarkers(lng = stations$start_station_longitude, lat = stations$start_station_latitude, data = stations, popup = stations$start_station_name)
+
+map
+```
+
+Column {data-width=300}
+-----------------------------------------------------------------------
+
+### Monthly trips from July 2017 to October 2018
+
+```{r}
+
+
+monthly_users <- fordgobike%>%
+  mutate(date = strftime(start_time, "%Y-%m"), month = as.Date(paste0(date,'-01')))%>%
+  group_by(month)%>%
+  summarize(N = n())
+
+monthly <- ggplot(monthly_users, aes(x = month, y = N)) + geom_point() + geom_smooth() + theme(axis.text.x=element_text(angle = 90, hjust = 0)) + scale_x_date(breaks = monthly_users$month, labels = format(monthly_users$month, "%b %Y")) + ggtitle("Monthly Users FordGoBike") + xlab("Month") + ylab("Number of Trips")
+
+ggplotly(monthly)
+```
+
+Column {data-width=300}
+-----------------------------------------------------------------------
+
+### Distribution of Daily trips stratified by two categories (weekends and weekdays)
+
+```{r}
+yearly_users <-fordgobike%>%
+  mutate(date = as.Date(strftime(start_time, "%Y-%m-%d",month = month(date))), day = weekdays(date), dayType = ifelse(day == "Saturday" | day == "Sunday", "Weekend","Weekday"))%>%
+  group_by(date, day, dayType)%>%
+  summarize(N = n())
+  
+  
+#yearly_users  
+
+yearly <- ggplot(yearly_users, aes(x = date, y = N)) + geom_point() + theme_classic() + stat_smooth(method = "loess", formula = y ~ x, size = 2) + facet_wrap(~dayType)
+
+yearly
+
+library(plotly)
+ggplotly(yearly)
+```
